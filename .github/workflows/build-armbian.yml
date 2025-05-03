@@ -86,9 +86,16 @@ jobs:
 
           echo "status=success" >> ${GITHUB_OUTPUT}
 
+      - name: Compress image
+        id: compress
+        if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+        run: |
+          xz -zT0 build/output/images/*.img
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
       - name: Generate build tag
         id: tag
-        if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+        if: ${{ steps.compress.outputs.status }} == 'success' && !cancelled()
         run: |
           echo "build_tag=Armbian_${{ inputs.armbian_release }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
           echo "status=success" >> ${GITHUB_OUTPUT}
