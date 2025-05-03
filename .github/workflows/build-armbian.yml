@@ -1,0 +1,108 @@
+name: Build armbian
+
+on:
+  workflow_dispatch:
+    inputs:
+      armbian_branch:
+        type: string
+        description: "Choose framework branch"
+        default: "main"
+
+      armbian_kernel_branch:
+        type: choice
+        description: 'Kernel branch'
+        options:
+        - current
+        - edge
+        default: 'current'
+
+      armbian_release:
+        type: choice
+        description: 'Userspace'
+        options:
+        - bookworm
+        - trixie
+        - sid
+        - jammy
+        - noble
+        default: 'bookworm'
+
+      armbian_ui:
+        type: choice
+        description: 'User interface'
+        options:
+        - minimal
+        - server
+        default: 'server'
+
+jobs:
+  build:
+    name: "Build Armbian"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Github Runner
+        uses: descriptinc/free-disk-space@main
+        with:
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: "Checkout Armbian build framework"
+        uses: actions/checkout@v4
+        with:
+          repository: armbian/build
+          ref: ${{ inputs.armbian_branch }}
+          path: build
+
+      - name: Compile Armbian [ ${{ inputs.armbian_release }} ]
+        id: compile
+        run: |
+          # userspace decode
+          if [[ "${{ inputs.armbian_ui }}" == minimal ]]; then
+            BUILD_DESKTOP="no"
+            BUILD_MINIMAL="yes"
+          else
+            BUILD_DESKTOP="no"
+            BUILD_MINIMAL="no"
+          fi
+
+          # go to build folder
+          cd build
+
+          # execute build command
+          ./compile.sh build \
+          BOARD="nanopi-r3s" \
+          BRANCH="${{ inputs.armbian_kernel_branch }}" \
+          RELEASE="${{ inputs.armbian_release }}" \
+          KERNEL_CONFIGURE="no" \
+          BUILD_DESKTOP="${BUILD_DESKTOP}" \
+          BUILD_MINIMAL="${BUILD_MINIMAL}" \
+          COMPRESS_OUTPUTIMAGE="sha" \
+          SHARE_LOG="yes" \
+          EXPERT="yes"
+
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Generate build tag
+        id: tag
+        if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+        run: |
+          echo "build_tag=Armbian_${{ inputs.armbian_release }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Upload Armbian image to Release
+        uses: ncipollo/release-action@v1
+        if: ${{ steps.tag.outputs.status }} == 'success' && !cancelled()
+        with:
+          tag: ${{ steps.tag.outputs.build_tag }}
+          artifacts: build/output/images/*
+          allowUpdates: true
+          removeArtifacts: false
+          replacesArtifacts: true
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Build with [Armbian tools](https://github.com/armbian/build)
