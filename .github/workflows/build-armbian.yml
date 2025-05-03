@@ -90,7 +90,7 @@ jobs:
         id: compress
         if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
         run: |
-          xz -zT0 build/output/images/*.img
+          sudo xz -zT0 build/output/images/*.img
           echo "status=success" >> ${GITHUB_OUTPUT}
 
       - name: Generate build tag
