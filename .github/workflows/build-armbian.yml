@@ -38,18 +38,8 @@ on:
 jobs:
   build:
     name: "Build Armbian"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
-      - name: Free Github Runner
-        uses: descriptinc/free-disk-space@main
-        with:
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-
       - name: "Checkout Armbian build framework"
         uses: actions/checkout@v4
         with:
