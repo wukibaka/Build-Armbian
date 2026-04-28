@@ -3,6 +3,14 @@ name: Build armbian
 on:
   workflow_dispatch:
     inputs:
+      armbian_board:
+        type: choice
+        description: 'Board'
+        options:
+        - nanopi-r3s
+        - nanopi-zero2
+        default: 'nanopi-r3s'
+
       armbian_branch:
         type: string
         description: "Choose framework branch"
@@ -14,6 +22,7 @@ on:
         options:
         - current
         - edge
+        - vendor
         default: 'current'
 
       armbian_release:
@@ -64,7 +73,7 @@ jobs:
 
           # execute build command
           ./compile.sh build \
-          BOARD="nanopi-r3s" \
+          BOARD="${{ inputs.armbian_board }}" \
           BRANCH="${{ inputs.armbian_kernel_branch }}" \
           RELEASE="${{ inputs.armbian_release }}" \
           KERNEL_CONFIGURE="no" \

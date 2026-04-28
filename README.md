@@ -1,1 +1,1 @@
-# NanoPi-R3S-Armbian
+# NanoPi-Armbian
