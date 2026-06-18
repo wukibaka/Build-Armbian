@@ -9,6 +9,7 @@ on:
         options:
         - nanopi-r3s
         - nanopi-zero2
+        - panther-x2
         default: 'nanopi-r3s'
 
       armbian_branch:
