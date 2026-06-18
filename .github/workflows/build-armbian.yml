@@ -61,6 +61,8 @@ jobs:
         id: compile
         run: |
           # userspace decode
+          build_args=()
+
           if [[ "${{ inputs.armbian_ui }}" == minimal ]]; then
             BUILD_DESKTOP="no"
             BUILD_MINIMAL="yes"
@@ -72,6 +74,21 @@ jobs:
           # go to build folder
           cd build
 
+          if [[ "${{ inputs.armbian_board }}" == "panther-x2" ]]; then
+            echo "Applying U-Boot compatibility workaround..."
+            cat << 'EOF' >> lib/functions/compilation/uboot.sh
+          if declare -F post_config_uboot_target >/dev/null; then
+            eval "$(declare -f post_config_uboot_target | sed '1s/^post_config_uboot_target/original_post_config_uboot_target/')"
+          fi
+          post_config_uboot_target() {
+            if declare -F original_post_config_uboot_target >/dev/null; then
+              original_post_config_uboot_target "$@"
+            fi
+            uboot_cflags_array+=( "-Wno-error" )
+          }
+          EOF
+          fi
+
           # execute build command
           ./compile.sh build \
           BOARD="${{ inputs.armbian_board }}" \
@@ -82,27 +99,28 @@ jobs:
           BUILD_MINIMAL="${BUILD_MINIMAL}" \
           COMPRESS_OUTPUTIMAGE="sha" \
           SHARE_LOG="yes" \
-          EXPERT="yes"
+          EXPERT="yes" \
+          "${build_args[@]}"
 
-          echo "status=success" >> ${GITHUB_OUTPUT}
+          echo "status=success" >> "$GITHUB_OUTPUT"
 
       - name: Compress image
         id: compress
-        if: ${{ steps.compile.outputs.status }} == 'success' && !cancelled()
+        if: ${{ steps.compile.outputs.status == 'success' && !cancelled() }}
         run: |
           sudo xz -zT0 build/output/images/*.img
-          echo "status=success" >> ${GITHUB_OUTPUT}
+          echo "status=success" >> "$GITHUB_OUTPUT"
 
       - name: Generate build tag
         id: tag
-        if: ${{ steps.compress.outputs.status }} == 'success' && !cancelled()
+        if: ${{ steps.compress.outputs.status == 'success' && !cancelled() }}
         run: |
-          echo "build_tag=Armbian_${{ inputs.armbian_release }}_$(date +"%Y.%m")" >> ${GITHUB_OUTPUT}
-          echo "status=success" >> ${GITHUB_OUTPUT}
+          echo "build_tag=Armbian_${{ inputs.armbian_release }}_$(date +"%Y.%m")" >> "$GITHUB_OUTPUT"
+          echo "status=success" >> "$GITHUB_OUTPUT"
 
       - name: Upload Armbian image to Release
         uses: ncipollo/release-action@v1
-        if: ${{ steps.tag.outputs.status }} == 'success' && !cancelled()
+        if: ${{ steps.tag.outputs.status == 'success' && !cancelled() }}
         with:
           tag: ${{ steps.tag.outputs.build_tag }}
           artifacts: build/output/images/*
